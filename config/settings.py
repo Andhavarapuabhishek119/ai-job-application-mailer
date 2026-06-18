@@ -4,6 +4,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -37,13 +38,32 @@ def load_env() -> None:
     load_dotenv()
 
 
+def _streamlit_secret(name: str) -> Any:
+    try:
+        import streamlit as st
+
+        return st.secrets.get(name)
+    except Exception:
+        return None
+
+
+def _setting(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+    secret = _streamlit_secret(name)
+    if secret is None:
+        return default
+    return str(secret)
+
+
 def get_smtp_settings() -> SMTPSettings:
-    port = int(os.getenv("SMTP_PORT", "587") or 587)
+    port = int(_setting("SMTP_PORT", "587") or 587)
     return SMTPSettings(
-        host=os.getenv("SMTP_HOST", ""),
+        host=_setting("SMTP_HOST"),
         port=port,
-        username=os.getenv("SMTP_USERNAME", ""),
-        password=os.getenv("SMTP_PASSWORD", ""),
+        username=_setting("SMTP_USERNAME"),
+        password=_setting("SMTP_PASSWORD"),
     )
 
 

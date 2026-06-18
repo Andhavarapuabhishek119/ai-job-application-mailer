@@ -36,10 +36,20 @@ class ContactParser:
                 for table in tables:
                     if not table or len(table) < 2:
                         continue
-                    header = table[0]
-                    rows = table[1:]
+                    if self._looks_like_header(table[0]):
+                        header = table[0]
+                        rows = table[1:]
+                    else:
+                        header = [f"column_{index + 1}" for index in range(len(table[0]))]
+                        rows = table
                     frames.append(pd.DataFrame(rows, columns=header))
 
         if not frames:
             return pd.DataFrame()
         return pd.concat(frames, ignore_index=True)
+
+    @staticmethod
+    def _looks_like_header(row: list[object]) -> bool:
+        text = " ".join(str(cell or "").lower() for cell in row)
+        header_words = ["name", "company", "email", "mail", "organization", "organisation", "recruiter"]
+        return any(word in text for word in header_words) and "@" not in text

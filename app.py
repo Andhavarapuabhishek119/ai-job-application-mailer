@@ -47,6 +47,20 @@ def save_uploaded_file(uploaded_file, destination: Path) -> Path | None:
     return target
 
 
+def save_attachment(uploaded_file, filename: str) -> Path | None:
+    if uploaded_file is None:
+        return None
+    target = Path("uploads") / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(uploaded_file.getbuffer())
+    return target
+
+
+def saved_attachment(filename: str) -> Path | None:
+    path = Path("uploads") / filename
+    return path if path.exists() else None
+
+
 def render_dashboard(repo: EmailLogRepository) -> None:
     contacts = st.session_state.get("contacts", pd.DataFrame())
     stats = repo.stats()
@@ -176,14 +190,29 @@ def render_send_campaign(repo: EmailLogRepository) -> None:
     contacts = st.session_state.get("contacts", pd.DataFrame())
     config = load_candidate_config()
 
+    current_resume = saved_attachment("resume.pdf")
+    current_cover_letter = saved_attachment("cover_letter.pdf")
+
     col_a, col_b = st.columns(2)
     with col_a:
-        resume = st.file_uploader("Resume PDF", type=["pdf"], key="resume_upload")
+        if current_resume:
+            st.success("Saved resume.pdf is ready.")
+        else:
+            st.info("No resume saved yet.")
+        resume = st.file_uploader("Add or replace resume PDF", type=["pdf"], key="resume_upload")
     with col_b:
-        cover_letter = st.file_uploader("Cover Letter PDF", type=["pdf"], key="cover_letter_upload")
+        if current_cover_letter:
+            st.success("Saved cover_letter.pdf is ready.")
+        else:
+            st.info("No cover letter saved yet.")
+        cover_letter = st.file_uploader("Add or replace cover letter PDF", type=["pdf"], key="cover_letter_upload")
 
-    resume_path = save_uploaded_file(resume, Path("uploads")) if resume else None
-    cover_letter_path = save_uploaded_file(cover_letter, Path("uploads")) if cover_letter else None
+    if resume:
+        current_resume = save_attachment(resume, "resume.pdf")
+        st.success("Resume saved. It will be reused until you replace it.")
+    if cover_letter:
+        current_cover_letter = save_attachment(cover_letter, "cover_letter.pdf")
+        st.success("Cover letter saved. It will be reused until you replace it.")
 
     st.write(f"Ready contacts: {len(contacts)}")
     st.toggle("Pause campaign", key="campaign_paused")
@@ -200,9 +229,9 @@ def render_send_campaign(repo: EmailLogRepository) -> None:
         smtp = get_smtp_settings()
         if not smtp.is_complete:
             missing.append("SMTP environment variables")
-        if not resume_path:
+        if not current_resume:
             missing.append("resume.pdf")
-        if not cover_letter_path:
+        if not current_cover_letter:
             missing.append("cover_letter.pdf")
         if not config.get("full_name"):
             missing.append("candidate settings")
@@ -216,7 +245,7 @@ def render_send_campaign(repo: EmailLogRepository) -> None:
         progress = st.progress(0)
         status_box = st.empty()
 
-        attachments = [resume_path, cover_letter_path]
+        attachments = [current_resume, current_cover_letter]
         for idx, row in contacts.iterrows():
             if st.session_state.get("campaign_paused"):
                 status_box.warning("Campaign paused. Unpause and start again to continue.")

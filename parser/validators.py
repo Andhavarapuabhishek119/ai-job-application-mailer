@@ -21,14 +21,70 @@ class ContactValidationResult:
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     column_map = {}
     for col in df.columns:
-        key = str(col).strip().lower().replace(" ", "_").replace("-", "_")
-        if key in {"hr", "hr_name", "name", "contact_name", "recruiter_name"}:
+        key = _canonical_key(col)
+        if key in {"hr", "hr_name", "hrperson", "name", "contact_name", "contactname", "recruiter_name", "recruitername", "recruiter", "hr_person"}:
             column_map[col] = "hr_name"
-        elif key in {"company", "company_name", "organization", "organisation"}:
+        elif key in {"company", "company_name", "companyname", "organization", "organisation", "employer"}:
             column_map[col] = "company_name"
-        elif key in {"email", "email_address", "mail", "e_mail"}:
+        elif key in {"email", "email_address", "emailaddress", "mail", "e_mail", "emailid", "email_id"}:
             column_map[col] = "email"
-    return df.rename(columns=column_map)
+    normalized = df.rename(columns=column_map)
+    normalized = normalized.loc[:, ~normalized.columns.duplicated()].copy()
+    return infer_missing_columns(normalized)
+
+
+def _canonical_key(value: object) -> str:
+    key = re.sub(r"[^a-z0-9]+", "_", str(value).strip().lower()).strip("_")
+    return key.replace("_", "") if key in {"company_name", "email_address", "email_id"} else key
+
+
+def infer_missing_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    remaining = [column for column in df.columns if column not in REQUIRED_COLUMNS]
+
+    if "email" not in df.columns:
+        email_column = _best_email_column(df, remaining)
+        if email_column is not None:
+            df = df.rename(columns={email_column: "email"})
+            remaining = [column for column in df.columns if column not in REQUIRED_COLUMNS]
+
+    if "company_name" not in df.columns:
+        company_column = _find_by_name(remaining, {"company", "company_name", "companyname", "organization", "organisation", "employer"})
+        if company_column is None and "email" in df.columns and len(remaining) >= 2:
+            company_column = remaining[-1]
+        if company_column is not None:
+            df = df.rename(columns={company_column: "company_name"})
+            remaining = [column for column in df.columns if column not in REQUIRED_COLUMNS]
+
+    if "hr_name" not in df.columns:
+        hr_column = _find_by_name(remaining, {"hr", "hr_name", "hrperson", "name", "contact_name", "contactname", "recruiter", "recruiter_name", "recruitername"})
+        if hr_column is None and remaining:
+            hr_column = remaining[0]
+        if hr_column is not None:
+            df = df.rename(columns={hr_column: "hr_name"})
+
+    return df
+
+
+def _find_by_name(columns: list[object], names: set[str]) -> object | None:
+    for column in columns:
+        if _canonical_key(column) in names:
+            return column
+    return None
+
+
+def _best_email_column(df: pd.DataFrame, columns: list[object]) -> object | None:
+    best_column = None
+    best_score = 0
+    for column in columns:
+        values = df[column].fillna("").astype(str).str.strip()
+        score = values.apply(lambda value: bool(EMAIL_PATTERN.match(value))).sum()
+        if "email" in _canonical_key(column):
+            score += 2
+        if score > best_score:
+            best_score = score
+            best_column = column
+    return best_column if best_score > 0 else None
 
 
 def validate_contacts(df: pd.DataFrame) -> ContactValidationResult:
