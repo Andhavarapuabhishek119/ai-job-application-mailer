@@ -1,46 +1,25 @@
 from __future__ import annotations
 
 
-def _section(label: str, value: str) -> str:
-    value = (value or "").strip()
-    if not value:
-        return ""
-    return f"\n{label}:\n{value}\n"
-
-
 def render_email(candidate: dict, hr_name: str, company_name: str, custom_paragraph: str = "") -> str:
     name = (candidate.get("full_name", "") or "").strip()
     phone = (candidate.get("phone_number", "") or "").strip()
-    skills = (candidate.get("skills", "") or "").strip()
-    linkedin = (candidate.get("linkedin", "") or "").strip()
-    github = (candidate.get("github", "") or "").strip()
-    portfolio = (candidate.get("portfolio", "") or "").strip()
     email = (candidate.get("email", "") or "").strip()
-    experience = (candidate.get("experience_summary", "") or "").strip()
+    skills = (candidate.get("skills", "") or "").strip()
 
-    optional_paragraph = f"\n{custom_paragraph}\n" if custom_paragraph else ""
-    profile_sections = "".join(
-        [
-            _section("Skills", skills),
-            _section("Email", email),
-            _section("LinkedIn", linkedin),
-            _section("GitHub", github),
-            _section("Portfolio", portfolio),
-        ]
-    )
+    skill_text = skills or "Python, SQL, Machine Learning, React.js, and Web Development"
+    company_text = company_name or "[Company Name]"
     phone_line = f"\n{phone}" if phone else ""
+    email_line = f"\n[{email}]" if email else ""
+    optional_paragraph = f"\n{custom_paragraph}\n" if custom_paragraph else ""
 
     return f"""Dear {hr_name},
 
-I hope you are doing well.
-
-My name is {name}. {experience or "I am a software developer with experience in Python, AI, Full Stack Development, and Automation."}
+I am interested in the [Job Title] position at {company_text}. I recently graduated in Artificial Intelligence and Machine Learning and have hands-on experience in {skill_text} through projects and internships.
 {optional_paragraph}
-I am interested in exploring opportunities at {company_name}. My resume and cover letter are attached for your review.
-{profile_sections}
+I have attached my resume for your review. Thank you for your consideration, and I look forward to hearing from you.
 
-Thank you for your time and consideration.
+Best regards,
 
-Regards,
-{name}{phone_line}
+{name}{phone_line}{email_line}
 """
