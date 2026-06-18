@@ -19,6 +19,8 @@ class ContactValidationResult:
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = _unique_columns(df.columns)
     column_map = {}
     for col in df.columns:
         key = _canonical_key(col)
@@ -31,6 +33,17 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     normalized = df.rename(columns=column_map)
     normalized = normalized.loc[:, ~normalized.columns.duplicated()].copy()
     return infer_missing_columns(normalized)
+
+
+def _unique_columns(columns: object) -> list[str]:
+    seen: dict[str, int] = {}
+    unique: list[str] = []
+    for index, column in enumerate(columns):
+        base = str(column or "").strip() or f"column_{index + 1}"
+        count = seen.get(base, 0)
+        seen[base] = count + 1
+        unique.append(base if count == 0 else f"{base}_{count + 1}")
+    return unique
 
 
 def _canonical_key(value: object) -> str:

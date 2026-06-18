@@ -129,7 +129,7 @@ def render_contacts() -> None:
 
 
 def render_settings() -> None:
-    st.title("Settings")
+    st.title("Profile Update")
     current = load_candidate_config()
 
     with st.form("candidate_settings"):
@@ -152,7 +152,7 @@ def render_settings() -> None:
             max_value=200,
             value=int(current.get("max_emails_per_hour", 25)),
         )
-        submitted = st.form_submit_button("Save Settings")
+        submitted = st.form_submit_button("Save Profile")
 
     if submitted:
         save_candidate_config(
@@ -169,7 +169,7 @@ def render_settings() -> None:
                 "max_emails_per_hour": max_per_hour,
             }
         )
-        st.success("Settings saved locally.")
+        st.success("Profile saved locally.")
 
     st.subheader("SMTP Environment")
     smtp = get_smtp_settings()
@@ -298,14 +298,14 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Navigation",
-        ["Dashboard", "Contacts", "Settings", "Send Campaign", "Logs"],
+        ["Dashboard", "Contacts", "Profile Update", "Send Campaign", "Logs"],
     )
 
     if page == "Dashboard":
         render_dashboard(repo)
     elif page == "Contacts":
         render_contacts()
-    elif page == "Settings":
+    elif page == "Profile Update":
         render_settings()
     elif page == "Send Campaign":
         render_send_campaign(repo)
